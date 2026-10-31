@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "CalMates",
+    "slug": "sehatku-komunitas",
+    "scheme": "sehatku",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.contoh.sehatku"
+    },
+    "android": {
+      "package": "com.contoh.sehatku",
+      "adaptiveIcon": {
+        "backgroundColor": "#DCEFE5",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CalMates memerlukan akses galeri untuk memilih foto makanan.",
+          "cameraPermission": "CalMates memerlukan akses kamera untuk memotret makanan."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#12724F"
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "",
+      "trackingReleased": false
+    }
+  }
+}
