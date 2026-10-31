@@ -1,0 +1,24 @@
+{
+  "name": "calmates-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --no-warnings=ExperimentalWarning server.js",
+    "dev": "node --no-warnings=ExperimentalWarning --watch server.js",
+    "test": "node --no-warnings=ExperimentalWarning --test test/*.test.js",
+    "seed": "node scripts/seed.mjs"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "@libsql/client": "^0.18.0",
+    "@vercel/blob": "^2.8.2",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  }
+}

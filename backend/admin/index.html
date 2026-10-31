@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CalMates · Moderasi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root { --acc:#12724F; --accDark:#0B5139; --soft:#E1F3E9; --ink:#11261C; --muted:#5A6E63; --bg:#F2F7F4; --line:#E2ECE6; --kunyit:#F5B82E; --amber:#FFF2CF; --red:#C83A3F; --redSoft:#FDECEC; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:linear-gradient(135deg,#178A60,#0B5139); color:#fff; padding:22px 28px 64px; border-radius:0 0 28px 28px; }
+  header h1 { margin:0; font-size:24px; font-weight:800; letter-spacing:-.4px; }
+  header p { margin:4px 0 0; opacity:.8; font-size:14px; }
+  main { max-width:1100px; margin:-44px auto 40px; padding:0 20px; }
+  .card { background:#fff; border-radius:20px; box-shadow:0 4px 18px rgba(11,81,57,.09); padding:18px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .stat b { display:block; font-size:28px; font-weight:800; }
+  .stat span { color:var(--muted); font-size:13px; font-weight:600; }
+  .stat.warn b { color:var(--red); }
+  .tabs { display:flex; gap:8px; margin:22px 0 12px; }
+  .tab { border:0; background:#fff; padding:10px 16px; border-radius:999px; font:inherit; font-weight:700; color:var(--muted); cursor:pointer; box-shadow:0 2px 8px rgba(11,81,57,.07); }
+  .tab.on { background:var(--ink); color:#fff; }
+  .report { display:grid; grid-template-columns:auto 1fr auto; gap:14px; align-items:start; margin-bottom:12px; }
+  .av { width:42px; height:42px; border-radius:50%; background:var(--soft); color:var(--accDark); display:grid; place-items:center; font-weight:800; }
+  .meta { color:var(--muted); font-size:13px; }
+  .text { margin:6px 0; font-size:15px; line-height:1.5; }
+  .pill { display:inline-block; padding:3px 9px; border-radius:9px; font-size:12px; font-weight:700; margin-right:6px; }
+  .pill.red { background:var(--redSoft); color:var(--red); } .pill.amber { background:var(--amber); color:#6B4A00; } .pill.green { background:var(--soft); color:var(--accDark); }
+  .actions { display:flex; flex-direction:column; gap:8px; min-width:170px; }
+  button.b { border:0; border-radius:12px; padding:10px 12px; font:inherit; font-weight:700; cursor:pointer; }
+  .b.ok { background:var(--soft); color:var(--accDark); } .b.del { background:var(--redSoft); color:var(--red); } .b.ban { background:var(--ink); color:#fff; }
+  button:focus-visible, input:focus-visible { outline:3px solid #2FB57A; outline-offset:2px; }
+  img.ph { width:120px; height:90px; object-fit:cover; border-radius:12px; margin-top:6px; }
+  table { width:100%; border-collapse:collapse; } th, td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); font-size:14px; } th { color:var(--muted); font-size:12.5px; }
+  input.s { width:100%; padding:12px 14px; border-radius:14px; border:1.5px solid var(--line); font:inherit; margin-bottom:12px; }
+  .empty { text-align:center; color:var(--muted); padding:30px; }
+  #login { max-width:420px; margin:-44px auto 0; }
+  .err { color:var(--red); font-weight:600; font-size:14px; min-height:20px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🛡️ Moderasi CalMates</h1>
+  <p>Tinjau laporan, jaga komunitas tetap aman dan nyaman.</p>
+</header>
+
+<section id="login" class="card" hidden>
+  <h2 style="margin-top:0">Masuk sebagai admin</h2>
+  <p class="meta">Token admin dicetak di terminal saat backend menyala, atau atur <code>ADMIN_TOKEN</code> di <code>backend/.env</code>.</p>
+  <input id="tok" class="s" type="password" placeholder="Token admin" autocomplete="current-password" aria-label="Token admin" />
+  <div class="err" id="loginErr"></div>
+  <button class="b ban" style="width:100%" onclick="login()">Masuk</button>
+</section>
+
+<main id="app" hidden>
+  <div class="stats" id="stats"></div>
+  <div class="tabs" role="tablist">
+    <button class="tab on" data-t="reports" role="tab">Laporan</button>
+    <button class="tab" data-t="users" role="tab">Pengguna</button>
+    <button class="tab" data-t="log" role="tab">Riwayat moderasi</button>
+    <button class="tab" style="margin-left:auto" onclick="logout()">Keluar</button>
+  </div>
+  <div id="view"></div>
+</main>
+
+<script>
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const ago = (iso) => new Date(iso).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  let token = localStorage.getItem('cm_admin') || '';
+  let tab = 'reports';
+
+  async function api(path, opts = {}) {
+    const r = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token, ...(opts.headers || {}) } });
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 401) { logout(); throw new Error(j.error || 'Token salah'); }
+    if (!r.ok) throw new Error(j.error || 'Gagal');
+    return j;
+  }
+  async function login() {
+    token = $('#tok').value.trim();
+    try { await api('/api/admin/stats'); localStorage.setItem('cm_admin', token); show(); } catch (e) { $('#loginErr').textContent = 'Token admin salah. Cek terminal backend.'; }
+  }
+  function logout() { localStorage.removeItem('cm_admin'); token = ''; $('#app').hidden = true; $('#login').hidden = false; }
+
+  async function stats() {
+    const s = await api('/api/admin/stats');
+    const items = [['Pengguna', s.users], ['Aktif 7 hari', s.active7d], ['Baru 7 hari', s.newUsers7d], ['Postingan', s.posts], ['Laporan terbuka', s.openReports, s.openReports > 0], ['Akun nonaktif', s.banned], ['Tertarik Premium', s.premiumInterest], ['Akun diamankan', s.secured]];
+    $('#stats').innerHTML = items.map(([l, n, w]) => `<div class="card stat ${w ? 'warn' : ''}"><b>${n}</b><span>${l}</span></div>`).join('');
+  }
+
+  async function reports() {
+    const { reports } = await api('/api/admin/reports');
+    if (!reports.length) return ($('#view').innerHTML = '<div class="card empty">🎉 Tidak ada laporan. Komunitas aman.</div>');
+    $('#view').innerHTML = reports.map((r) => `
+      <div class="card report">
+        <div class="av">${esc(r.author.initials)}</div>
+        <div>
+          <div><b>${esc(r.author.name)}</b> <span class="meta">· ${esc(r.topic)} · ${ago(r.createdAt)}</span></div>
+          <div class="text">${esc(r.text)}</div>
+          ${r.photo ? `<img class="ph" src="${esc(r.photo)}" alt="Foto postingan" />` : ''}
+          <div style="margin-top:8px">
+            <span class="pill red">${r.reports} laporan</span>
+            ${r.hidden ? '<span class="pill amber">Disembunyikan otomatis</span>' : ''}
+            ${r.author.banned ? '<span class="pill red">Akun nonaktif</span>' : ''}
+          </div>
+          ${r.reasons.length ? `<div class="meta" style="margin-top:6px">Alasan: ${r.reasons.map(esc).join(', ')}</div>` : ''}
+        </div>
+        <div class="actions">
+          <button class="b ok" onclick="act('dismiss', ${r.postId})">Abaikan laporan</button>
+          <button class="b del" onclick="act('delete', ${r.postId})">Hapus postingan</button>
+          ${r.author.bot ? '' : `<button class="b ban" onclick="ban(${r.author.id}, ${!r.author.banned})">${r.author.banned ? 'Aktifkan akun' : 'Nonaktifkan akun'}</button>`}
+        </div>
+      </div>`).join('');
+  }
+
+  async function users(q = '') {
+    const { users } = await api('/api/admin/users' + (q ? `?q=${encodeURIComponent(q)}` : ''));
+    $('#view').innerHTML = `<div class="card">
+      <input class="s" placeholder="Cari nama atau nama pengguna" value="${esc(q)}" onkeydown="if(event.key==='Enter') users(this.value)" aria-label="Cari pengguna" />
+      <table><thead><tr><th>Nama</th><th>Nama pengguna</th><th>Postingan</th><th>Dilaporkan</th><th>Bergabung</th><th></th></tr></thead><tbody>
+      ${users.map((u) => `<tr><td><b>${esc(u.name)}</b> ${u.banned ? '<span class="pill red">nonaktif</span>' : ''}</td><td>${u.handle ? '@' + esc(u.handle) : '<span class="meta">tamu</span>'}</td><td>${u.posts}</td><td>${u.reported ? `<span class="pill red">${u.reported}</span>` : 0}</td><td class="meta">${ago(u.createdAt)}</td>
+        <td><button class="b ${u.banned ? 'ok' : 'ban'}" onclick="ban(${u.id}, ${!u.banned})">${u.banned ? 'Aktifkan' : 'Nonaktifkan'}</button></td></tr>`).join('') || '<tr><td colspan="6" class="empty">Tidak ada pengguna</td></tr>'}
+      </tbody></table></div>`;
+  }
+
+  async function log() {
+    const { log } = await api('/api/admin/log');
+    const label = { dismiss: 'Abaikan laporan', delete_post: 'Hapus postingan', ban: 'Nonaktifkan akun', unban: 'Aktifkan akun' };
+    $('#view').innerHTML = `<div class="card"><table><thead><tr><th>Waktu</th><th>Tindakan</th><th>Target</th><th>Catatan</th></tr></thead><tbody>
+      ${log.map((l) => `<tr><td class="meta">${ago(l.created_at)}</td><td><b>${esc(label[l.action] || l.action)}</b></td><td>${esc(l.target)}</td><td class="meta">${esc(l.note)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">Belum ada tindakan</td></tr>'}
+      </tbody></table></div>`;
+  }
+
+  async function act(kind, id) {
+    if (kind === 'delete' && !confirm('Hapus postingan ini secara permanen?')) return;
+    await api(kind === 'delete' ? `/api/admin/posts/${id}` : `/api/admin/posts/${id}/dismiss`, { method: kind === 'delete' ? 'DELETE' : 'POST' });
+    refresh();
+  }
+  async function ban(id, banned) {
+    if (banned && !confirm('Nonaktifkan akun ini? Pengguna akan keluar dari semua perangkat dan kontennya disembunyikan.')) return;
+    await api(`/api/admin/users/${id}/ban`, { method: 'POST', body: JSON.stringify({ banned }) });
+    refresh();
+  }
+  function refresh() { stats(); ({ reports, users, log })[tab](); }
+  document.querySelectorAll('.tab[data-t]').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('.tab[data-t]').forEach((x) => x.classList.toggle('on', x === b));
+    tab = b.dataset.t; refresh();
+  }));
+  function show() { $('#login').hidden = true; $('#app').hidden = false; refresh(); }
+  token ? api('/api/admin/stats').then(show).catch(() => logout()) : logout();
+  $('#tok').addEventListener('keydown', (e) => e.key === 'Enter' && login());
+</script>
+</body>
+</html>
