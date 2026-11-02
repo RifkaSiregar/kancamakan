@@ -4,7 +4,7 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, resolve } from 'node:path';
-import { createClient } from '@libsql/client';
+import { createClient } from '@libsql/client/web';
 import { CONTENT } from '../data/content.js';
 import { FOODS } from '../data/foods.js';
 import { TIPS } from '../data/tips.js';
