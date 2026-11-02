@@ -39,7 +39,8 @@
         {
           "color": "#12724F"
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "extra": {
       "apiUrl": "",
